@@ -21,6 +21,3 @@ This is a content repository (no code) collecting cybersecurity mental health re
 
 This project is in early development. Planned but not yet created: worksheet templates and guidance for daily practice. There is no build system, tests, or code — all content is prose.
 
-## Notes
-
-The repository name contains a known typo ("Pyschologically" instead of "Psychologically") which is consistent in both the directory name and the GitHub remote URL.
