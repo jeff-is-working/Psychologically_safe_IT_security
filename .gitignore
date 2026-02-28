@@ -6,3 +6,14 @@ Thumbs.db
 CLAUDE.md
 claude.md
 .claude/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Local dev
+node_modules/
+.env

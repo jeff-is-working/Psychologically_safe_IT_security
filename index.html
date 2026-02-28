@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PeopleSafe SDLC Journal</title>
+  <meta name="description" content="Client-side encrypted daily journaling for IT professionals. Success, Delight, Learning, Compliment.">
+
+  <!-- Security Headers -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-eval'; style-src 'self'; img-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self';">
+  <meta http-equiv="X-Frame-Options" content="DENY">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Permissions-Policy" content="camera=(), microphone=(), geolocation=(), payment=()">
+
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+<div x-data="sdlcApp" x-cloak class="app-container">
+
+  <!-- ==================== LOADING ==================== -->
+  <template x-if="view === 'loading'">
+    <div class="loading-screen">
+      <div class="spinner"></div>
+      <p>Initializing secure journal&hellip;</p>
+    </div>
+  </template>
+
+  <!-- ==================== UNSUPPORTED BROWSER ==================== -->
+  <template x-if="view === 'unsupported'">
+    <div class="card card-centered">
+      <h1>Browser Not Supported</h1>
+      <p style="margin-top:1rem;">This app requires Web Crypto API and IndexedDB. Please use a modern browser (Chrome, Firefox, Safari, Edge).</p>
+      <p x-show="error" x-text="error" class="message message-error" style="margin-top:1rem;"></p>
+    </div>
+  </template>
+
+  <!-- ==================== SETUP (First Time) ==================== -->
+  <template x-if="view === 'setup'">
+    <div class="card card-centered">
+      <img src="assets/circle6_notext_logo.png" alt="Circle 6 Systems" class="header-logo" style="margin:0 auto 1rem;display:block;width:64px;height:64px;">
+      <h1>PeopleSafe SDLC Journal</h1>
+      <p style="color:var(--slate);margin-bottom:1.5rem;">Create a passphrase to encrypt your journal. This passphrase never leaves your browser.</p>
+
+      <div x-show="error" x-text="error" class="message message-error"></div>
+
+      <div class="form-group" style="text-align:left;">
+        <label class="form-label" for="setup-pass">Passphrase</label>
+        <input id="setup-pass" type="password" class="form-input" x-model="passphrase"
+               placeholder="At least 12 characters" @keydown.enter="$refs.setupConfirm.focus()">
+        <div class="passphrase-hint" x-show="passphrase.length > 0 && passphrase.length < 12">
+          <span x-text="12 - passphrase.length"></span> more characters needed
+        </div>
+      </div>
+
+      <div class="form-group" style="text-align:left;">
+        <label class="form-label" for="setup-confirm">Confirm Passphrase</label>
+        <input id="setup-confirm" x-ref="setupConfirm" type="password" class="form-input" x-model="passphraseConfirm"
+               placeholder="Re-enter your passphrase" @keydown.enter="createPassphrase()">
+      </div>
+
+      <button class="btn btn-primary btn-block" @click="createPassphrase()" :disabled="isProcessing">
+        <span x-show="!isProcessing">Create Journal</span>
+        <span x-show="isProcessing">Deriving key&hellip;</span>
+      </button>
+
+      <p style="margin-top:1rem;font-size:0.75rem;color:var(--slate);">
+        Your passphrase is used to derive an AES-256-GCM encryption key via PBKDF2 (600,000 iterations). If you forget your passphrase, your data cannot be recovered.
+      </p>
+    </div>
+  </template>
+
+  <!-- ==================== AUTH (Returning User) ==================== -->
+  <template x-if="view === 'auth'">
+    <div class="card card-centered">
+      <img src="assets/circle6_notext_logo.png" alt="Circle 6 Systems" class="header-logo" style="margin:0 auto 1rem;display:block;width:64px;height:64px;">
+      <h1>Welcome Back</h1>
+      <p style="color:var(--slate);margin-bottom:1.5rem;">Enter your passphrase to unlock your journal.</p>
+
+      <div x-show="error" x-text="error" class="message message-error"></div>
+
+      <div class="form-group" style="text-align:left;">
+        <label class="form-label" for="auth-pass">Passphrase</label>
+        <input id="auth-pass" type="password" class="form-input" x-model="passphrase"
+               placeholder="Enter your passphrase" @keydown.enter="unlock()" autofocus>
+      </div>
+
+      <button class="btn btn-primary btn-block" @click="unlock()" :disabled="isProcessing">
+        <span x-show="!isProcessing">Unlock</span>
+        <span x-show="isProcessing">Verifying&hellip;</span>
+      </button>
+    </div>
+  </template>
+
+  <!-- ==================== AUTHENTICATED APP ==================== -->
+  <template x-if="isAuthed">
+    <div>
+
+      <!-- Header -->
+      <div class="header">
+        <img src="assets/circle6_notext_logo.png" alt="" class="header-logo">
+        <div>
+          <span class="header-title">PeopleSafe SDLC</span>
+          <span class="header-subtitle">Circle 6 Systems</span>
+        </div>
+        <div style="margin-left:auto;">
+          <button class="btn btn-small btn-secondary" @click="lock()">Lock</button>
+        </div>
+      </div>
+
+      <!-- Desktop Navigation -->
+      <nav class="nav-bar" aria-label="Main navigation">
+        <button class="nav-btn" :class="{ active: view === 'dashboard' }" @click="navigate('dashboard')">Journal</button>
+        <button class="nav-btn" :class="{ active: view === 'browse' }" @click="navigate('browse')">Browse</button>
+        <button class="nav-btn" :class="{ active: view === 'rollup' }" @click="navigate('rollup')">Rollups</button>
+        <button class="nav-btn" :class="{ active: view === 'about' }" @click="navigate('about')">About SDLC</button>
+        <button class="nav-btn" :class="{ active: view === 'settings' }" @click="navigate('settings')">Settings</button>
+      </nav>
+
+      <!-- Messages -->
+      <div x-show="error" x-text="error" class="message message-error" x-transition></div>
+      <div x-show="message" x-text="message" class="message message-success" x-transition></div>
+
+      <!-- ==================== DASHBOARD ==================== -->
+      <div x-show="view === 'dashboard'" x-transition>
+        <h2 x-text="Utils.formatDate(todayDate)" style="margin-bottom:0.25rem;"></h2>
+        <p style="font-size:0.85rem;color:var(--slate);margin-bottom:1.5rem;" x-text="hasEntryToday ? 'Update your entry for today.' : 'What happened today?'"></p>
+
+        <div class="card">
+          <div class="sdlc-field success">
+            <label class="sdlc-label success">
+              <span class="sdlc-icon">&#10003;</span> Success
+            </label>
+            <textarea class="form-input" x-model="entryForm.success" placeholder="Where did I have success today?" rows="3"></textarea>
+          </div>
+
+          <div class="sdlc-field delight">
+            <label class="sdlc-label delight">
+              <span class="sdlc-icon">&#9733;</span> Delight
+            </label>
+            <textarea class="form-input" x-model="entryForm.delight" placeholder="What brought me delight today?" rows="3"></textarea>
+          </div>
+
+          <div class="sdlc-field learning">
+            <label class="sdlc-label learning">
+              <span class="sdlc-icon">&#9998;</span> Learning
+            </label>
+            <textarea class="form-input" x-model="entryForm.learning" placeholder="What did I learn today?" rows="3"></textarea>
+          </div>
+
+          <div class="sdlc-field compliment">
+            <label class="sdlc-label compliment">
+              <span class="sdlc-icon">&#9829;</span> Compliment
+            </label>
+            <textarea class="form-input" x-model="entryForm.compliment" placeholder="What can I compliment about my day?" rows="3"></textarea>
+          </div>
+
+          <button class="btn btn-primary btn-block" @click="saveEntry()" :disabled="isProcessing">
+            <span x-show="!isProcessing" x-text="hasEntryToday ? 'Update Entry' : 'Save Entry'"></span>
+            <span x-show="isProcessing">Saving&hellip;</span>
+          </button>
+        </div>
+
+        <!-- Recent Entries -->
+        <template x-if="recentEntries.length > 0">
+          <div style="margin-top:1.5rem;">
+            <h3>Recent Entries</h3>
+            <div class="entry-list" style="margin-top:0.5rem;">
+              <template x-for="entry in recentEntries" :key="entry.date">
+                <div class="entry-item" @click="navigate('browse'); $nextTick(() => viewEntry(entry.date))">
+                  <div>
+                    <div class="entry-date" x-text="entry.dateLabel"></div>
+                    <div class="entry-preview" x-text="entry.preview"></div>
+                  </div>
+                  <span class="entry-arrow">&rsaquo;</span>
+                </div>
+              </template>
+            </div>
+          </div>
+        </template>
+      </div>
+
+      <!-- ==================== BROWSE ==================== -->
+      <div x-show="view === 'browse'" x-transition>
+
+        <!-- Entry Detail View -->
+        <template x-if="selectedEntry">
+          <div>
+            <button class="btn btn-small btn-secondary" @click="selectedEntry = null; isEditing = false;" style="margin-bottom:1rem;">&larr; Back to entries</button>
+
+            <h2 x-text="selectedEntry.dateLabel"></h2>
+
+            <!-- View Mode -->
+            <template x-if="!isEditing">
+              <div class="entry-detail">
+                <div class="entry-detail-category success" x-show="selectedEntry.data.success">
+                  <div class="entry-detail-label">&#10003; Success</div>
+                  <div class="entry-detail-text" x-text="selectedEntry.data.success"></div>
+                </div>
+                <div class="entry-detail-category delight" x-show="selectedEntry.data.delight">
+                  <div class="entry-detail-label">&#9733; Delight</div>
+                  <div class="entry-detail-text" x-text="selectedEntry.data.delight"></div>
+                </div>
+                <div class="entry-detail-category learning" x-show="selectedEntry.data.learning">
+                  <div class="entry-detail-label">&#9998; Learning</div>
+                  <div class="entry-detail-text" x-text="selectedEntry.data.learning"></div>
+                </div>
+                <div class="entry-detail-category compliment" x-show="selectedEntry.data.compliment">
+                  <div class="entry-detail-label">&#9829; Compliment</div>
+                  <div class="entry-detail-text" x-text="selectedEntry.data.compliment"></div>
+                </div>
+
+                <div class="btn-group" style="margin-top:1rem;">
+                  <button class="btn btn-small btn-secondary" @click="startEdit()">Edit</button>
+                  <button class="btn btn-small btn-danger" @click="deleteEntry()">Delete</button>
+                </div>
+
+                <p style="font-size:0.7rem;color:var(--slate);margin-top:0.75rem;">
+                  Created: <span x-text="selectedEntry.createdAt ? new Date(selectedEntry.createdAt).toLocaleString() : 'N/A'"></span>
+                  <template x-if="selectedEntry.updatedAt !== selectedEntry.createdAt">
+                    <span> | Updated: <span x-text="new Date(selectedEntry.updatedAt).toLocaleString()"></span></span>
+                  </template>
+                </p>
+              </div>
+            </template>
+
+            <!-- Edit Mode -->
+            <template x-if="isEditing">
+              <div class="card" style="margin-top:1rem;">
+                <div class="sdlc-field success">
+                  <label class="sdlc-label success"><span class="sdlc-icon">&#10003;</span> Success</label>
+                  <textarea class="form-input" x-model="editForm.success" rows="3"></textarea>
+                </div>
+                <div class="sdlc-field delight">
+                  <label class="sdlc-label delight"><span class="sdlc-icon">&#9733;</span> Delight</label>
+                  <textarea class="form-input" x-model="editForm.delight" rows="3"></textarea>
+                </div>
+                <div class="sdlc-field learning">
+                  <label class="sdlc-label learning"><span class="sdlc-icon">&#9998;</span> Learning</label>
+                  <textarea class="form-input" x-model="editForm.learning" rows="3"></textarea>
+                </div>
+                <div class="sdlc-field compliment">
+                  <label class="sdlc-label compliment"><span class="sdlc-icon">&#9829;</span> Compliment</label>
+                  <textarea class="form-input" x-model="editForm.compliment" rows="3"></textarea>
+                </div>
+                <div class="btn-group">
+                  <button class="btn btn-primary" @click="saveEdit()" :disabled="isProcessing">Save Changes</button>
+                  <button class="btn btn-secondary" @click="cancelEdit()">Cancel</button>
+                </div>
+              </div>
+            </template>
+          </div>
+        </template>
+
+        <!-- Entry List View -->
+        <template x-if="!selectedEntry">
+          <div>
+            <h2>Browse Entries</h2>
+
+            <!-- Search -->
+            <div class="search-bar" style="margin-top:1rem;">
+              <input class="form-input" x-model="searchQuery" placeholder="Search entries&hellip;"
+                     @input="search()" @keydown.escape="searchQuery = ''; searchResults = null;">
+            </div>
+
+            <!-- Search Results -->
+            <template x-if="searchResults !== null">
+              <div>
+                <p style="font-size:0.8rem;color:var(--slate);margin-bottom:0.5rem;">
+                  <span x-text="searchResults.length"></span> result(s) found
+                  <button class="btn btn-small btn-secondary" @click="searchQuery = ''; searchResults = null;" style="margin-left:0.5rem;">Clear</button>
+                </p>
+                <div class="entry-list">
+                  <template x-for="result in searchResults" :key="result.date">
+                    <div class="entry-item" @click="viewEntry(result.date)">
+                      <div>
+                        <div class="entry-date" x-text="result.dateLabel"></div>
+                        <div class="entry-preview" x-text="result.preview"></div>
+                      </div>
+                      <span class="entry-arrow">&rsaquo;</span>
+                    </div>
+                  </template>
+                </div>
+              </div>
+            </template>
+
+            <!-- All Entries Grouped by Month -->
+            <template x-if="searchResults === null">
+              <div>
+                <template x-if="browseGroups.length === 0">
+                  <div class="empty-state">
+                    <div class="empty-state-icon">&#128221;</div>
+                    <p>No entries yet. Start journaling from the Journal tab.</p>
+                  </div>
+                </template>
+
+                <template x-for="group in browseGroups" :key="group.monthKey">
+                  <div class="month-group">
+                    <div class="month-label" x-text="group.label"></div>
+                    <div class="entry-list">
+                      <template x-for="entry in group.entries" :key="entry.date">
+                        <div class="entry-item" @click="viewEntry(entry.date)">
+                          <div>
+                            <div class="entry-date" x-text="Utils.formatDateShort(entry.date)"></div>
+                          </div>
+                          <span class="entry-arrow">&rsaquo;</span>
+                        </div>
+                      </template>
+                    </div>
+                  </div>
+                </template>
+              </div>
+            </template>
+          </div>
+        </template>
+      </div>
+
+      <!-- ==================== ROLLUPS ==================== -->
+      <div x-show="view === 'rollup'" x-transition>
+        <h2>Rollup Summaries</h2>
+
+        <!-- Tab Bar -->
+        <div class="tab-bar">
+          <button class="tab-btn" :class="{ active: rollupTab === 'weekly' }" @click="switchRollupTab('weekly')">Weekly</button>
+          <button class="tab-btn" :class="{ active: rollupTab === 'monthly' }" @click="switchRollupTab('monthly')">Monthly</button>
+          <button class="tab-btn" :class="{ active: rollupTab === 'quarterly' }" @click="switchRollupTab('quarterly')">Quarterly</button>
+          <button class="tab-btn" :class="{ active: rollupTab === 'yearly' }" @click="switchRollupTab('yearly')">Yearly</button>
+        </div>
+
+        <!-- Period Selector -->
+        <template x-if="currentPeriods.length > 0">
+          <div class="period-selector">
+            <select class="period-select" x-model="selectedPeriod" @change="selectPeriod(selectedPeriod)">
+              <template x-for="p in currentPeriods" :key="p">
+                <option :value="p" x-text="formatPeriodLabel(p)"></option>
+              </template>
+            </select>
+          </div>
+        </template>
+
+        <template x-if="currentPeriods.length === 0">
+          <div class="empty-state">
+            <div class="empty-state-icon">&#128202;</div>
+            <p>No data for this period type yet. Keep journaling!</p>
+          </div>
+        </template>
+
+        <!-- Rollup Content -->
+        <template x-if="currentRollup">
+          <div>
+            <div class="card">
+              <h3 x-text="currentRollup.periodLabel"></h3>
+              <p style="font-size:0.8rem;color:var(--slate);">
+                <span x-text="currentRollup.entryCount"></span> entries
+              </p>
+
+              <template x-if="currentRollup.entryCount === 0">
+                <p style="color:var(--slate);margin-top:1rem;">No entries in this period.</p>
+              </template>
+
+              <!-- Auto-generated content by category -->
+              <template x-for="cat in ['success', 'delight', 'learning', 'compliment']" :key="cat">
+                <div class="rollup-category" x-show="currentRollup.autoContent[cat].length > 0">
+                  <div class="rollup-category-header">
+                    <span :class="'sdlc-label ' + cat" x-text="getCategoryIcon(cat) + ' ' + getCategoryLabel(cat)"></span>
+                  </div>
+                  <template x-for="item in currentRollup.autoContent[cat]" :key="item.date + cat">
+                    <div class="rollup-entry-item">
+                      <span class="rollup-entry-date" x-text="item.dateLabel"></span>
+                      <span class="rollup-entry-text" x-text="item.text"></span>
+                    </div>
+                  </template>
+                </div>
+              </template>
+
+              <!-- Sub-period Reflections -->
+              <template x-if="subReflections.length > 0">
+                <div style="margin-top:1.5rem;">
+                  <h4 style="color:var(--accent);margin-bottom:0.5rem;">Previous Reflections</h4>
+                  <template x-for="sr in subReflections" :key="sr.periodKey">
+                    <div class="sub-reflection">
+                      <div class="sub-reflection-label" x-text="sr.label"></div>
+                      <div x-text="sr.reflection" style="white-space:pre-wrap;"></div>
+                    </div>
+                  </template>
+                </div>
+              </template>
+
+              <!-- Editable Reflection -->
+              <div class="reflection-section">
+                <h4 style="margin-bottom:0.5rem;">Your Reflection</h4>
+                <p style="font-size:0.8rem;color:var(--slate);margin-bottom:0.5rem;">
+                  Reflect on this period. What patterns do you notice? Auto-saved as you type.
+                </p>
+                <textarea class="form-input" x-model="reflectionText" @input="onReflectionInput()"
+                          placeholder="Write your reflection here&hellip;" rows="5"></textarea>
+              </div>
+            </div>
+          </div>
+        </template>
+      </div>
+
+      <!-- ==================== ABOUT ==================== -->
+      <div x-show="view === 'about'" x-transition>
+        <div class="card about-content">
+          <h2>The SDLC Journaling Technique</h2>
+
+          <h3>Origin</h3>
+          <p>The PeopleSafe SDLC technique is inspired by <strong>The G.L.A.D. Technique</strong>, developed by Donald Altman as an approach to developing a grateful attitude toward life (see <em>The Mindfulness Toolbox</em>, New Harbinger Publications). G.L.A.D. stands for Gratitude, Learning, Accomplishment, and Delight.</p>
+
+          <h3>The SDLC Framework</h3>
+          <p>SDLC reframes these concepts for IT and cybersecurity professionals:</p>
+          <ul>
+            <li><strong style="color:var(--success-color);">Success</strong> &mdash; Where did I have success today? Recognizing wins, however small.</li>
+            <li><strong style="color:var(--delight-color);">Delight</strong> &mdash; What brought me delight today? Finding joy in the everyday.</li>
+            <li><strong style="color:var(--learning-color);">Learning</strong> &mdash; What did I learn today? Honoring continuous growth.</li>
+            <li><strong style="color:var(--compliment-color);">Compliment</strong> &mdash; What can I compliment about my day? Acknowledging the positive.</li>
+          </ul>
+
+          <h3>Why SDLC?</h3>
+          <p>SDLC is a familiar acronym in IT &mdash; the Software Development Life Cycle (or Security Development Life Cycle). By repurposing it, we reinforce both the practice of directed positive reflection <em>and</em> the foundational importance of SDLC methodology in our professional lives.</p>
+
+          <h3>For IT &amp; Cybersecurity Professionals</h3>
+          <p>Burnout is endemic in IT and cybersecurity. The constant vigilance, incident fatigue, and pressure to stay current can erode well-being. SDLC journaling builds resilience by:</p>
+          <ul>
+            <li>Documenting technical wins that are otherwise forgotten</li>
+            <li>Recognizing moments of professional growth amid daily grind</li>
+            <li>Building a personal record for career development and performance reviews</li>
+            <li>Counterbalancing the negativity bias inherent in security work</li>
+          </ul>
+
+          <h3>The Practice</h3>
+          <p>Journal daily. Entries do not need to be long or profound. A single sentence for each category is enough. The power lies in <strong>consistency over time</strong> &mdash; the compound effect of noticing the positive shifts your perspective permanently.</p>
+
+          <h3>Rollup Reflections</h3>
+          <p>Periodic reviews (weekly, monthly, quarterly, yearly) surface patterns invisible in day-to-day entries. You may discover that your learning entries cluster around certain skills, that your successes follow particular habits, or that delight appears in unexpected places.</p>
+
+          <h3>Privacy as a Foundation</h3>
+          <p>Psychological safety requires actual safety. Your journal entries are encrypted with AES-256-GCM before storage, using a key derived from your passphrase via PBKDF2. Data never leaves your browser. No server, no analytics, no tracking. Your reflections belong to you alone.</p>
+        </div>
+      </div>
+
+      <!-- ==================== SETTINGS ==================== -->
+      <div x-show="view === 'settings'" x-transition>
+        <h2>Settings</h2>
+
+        <div class="card">
+          <!-- Storage Info -->
+          <div class="settings-section">
+            <h3>Storage</h3>
+            <div class="stat-row">
+              <span class="stat-label">Journal Entries</span>
+              <span class="stat-value" x-text="entryCount"></span>
+            </div>
+            <template x-if="storageEstimate">
+              <div>
+                <div class="stat-row">
+                  <span class="stat-label">Storage Used</span>
+                  <span class="stat-value" x-text="storageEstimate.usageMB + ' MB'"></span>
+                </div>
+                <div class="stat-row">
+                  <span class="stat-label">Storage Quota</span>
+                  <span class="stat-value" x-text="storageEstimate.quotaMB + ' MB'"></span>
+                </div>
+              </div>
+            </template>
+          </div>
+
+          <!-- Export -->
+          <div class="settings-section">
+            <h3>Export Backup</h3>
+            <p style="font-size:0.8rem;color:var(--slate);margin-bottom:0.75rem;">
+              Download all your encrypted data as a JSON file. Store it somewhere safe.
+            </p>
+            <button class="btn btn-secondary" @click="exportData()">Download Backup</button>
+          </div>
+
+          <!-- Import -->
+          <div class="settings-section">
+            <h3>Import Backup</h3>
+            <p style="font-size:0.8rem;color:var(--slate);margin-bottom:0.75rem;">
+              Restore from a previously exported backup. Newer entries will take priority during merge.
+            </p>
+            <input type="file" accept=".json" @change="importData($event)" style="font-size:0.85rem;color:var(--slate-light);">
+            <p x-show="importError" x-text="importError" class="message message-error" style="margin-top:0.5rem;"></p>
+          </div>
+
+          <!-- Clear All -->
+          <div class="settings-section">
+            <h3 style="color:#ff6464;">Clear All Data</h3>
+            <p style="font-size:0.8rem;color:var(--slate);margin-bottom:0.75rem;">
+              Permanently delete all entries, rollups, and encryption keys. This cannot be undone.
+            </p>
+            <template x-if="!showClearConfirm">
+              <button class="btn btn-danger" @click="showClearConfirm = true">Clear All Data</button>
+            </template>
+            <template x-if="showClearConfirm">
+              <div>
+                <p style="font-size:0.85rem;color:#ff6464;margin-bottom:0.5rem;">Type <strong>DELETE ALL</strong> to confirm:</p>
+                <div style="display:flex;gap:0.5rem;">
+                  <input class="form-input" x-model="clearConfirmText" placeholder="DELETE ALL" style="max-width:200px;">
+                  <button class="btn btn-danger" @click="clearAllData()" :disabled="clearConfirmText !== 'DELETE ALL'">Confirm Delete</button>
+                  <button class="btn btn-secondary" @click="showClearConfirm = false; clearConfirmText = '';">Cancel</button>
+                </div>
+              </div>
+            </template>
+          </div>
+        </div>
+      </div>
+
+      <!-- ==================== BOTTOM NAV (Mobile) ==================== -->
+      <nav class="bottom-nav" aria-label="Mobile navigation">
+        <button class="bottom-nav-btn" :class="{ active: view === 'dashboard' }" @click="navigate('dashboard')">
+          <span class="icon">&#128221;</span>
+          <span>Journal</span>
+        </button>
+        <button class="bottom-nav-btn" :class="{ active: view === 'browse' }" @click="navigate('browse')">
+          <span class="icon">&#128269;</span>
+          <span>Browse</span>
+        </button>
+        <button class="bottom-nav-btn" :class="{ active: view === 'rollup' }" @click="navigate('rollup')">
+          <span class="icon">&#128202;</span>
+          <span>Rollups</span>
+        </button>
+        <button class="bottom-nav-btn" :class="{ active: view === 'about' }" @click="navigate('about')">
+          <span class="icon">&#9432;</span>
+          <span>About</span>
+        </button>
+        <button class="bottom-nav-btn" :class="{ active: view === 'settings' }" @click="navigate('settings')">
+          <span class="icon">&#9881;</span>
+          <span>Settings</span>
+        </button>
+      </nav>
+
+      <!-- Trust Footer -->
+      <div class="trust-footer">
+        <div class="privacy-badge">&#128274; Zero-Knowledge Privacy</div>
+        <p>All data is encrypted client-side with AES-256-GCM. Nothing is transmitted to any server. Your journal belongs to you alone.</p>
+        <p style="margin-top:0.5rem;">
+          A <a href="https://circle6.systems" target="_blank" rel="noopener">Circle 6 Systems</a> initiative for psychological safety in IT.
+        </p>
+      </div>
+
+    </div>
+  </template>
+
+</div>
+
+<!-- Scripts loaded in dependency order -->
+<script src="js/vendor/alpine.min.js" defer></script>
+<script src="js/utils.js"></script>
+<script src="js/crypto.js"></script>
+<script src="js/storage.js"></script>
+<script src="js/rollups.js"></script>
+<script src="js/app.js"></script>
+
+</body>
+</html>
