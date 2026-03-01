@@ -1,29 +1,29 @@
 /**
- * PeopleSafe SDLC Journal - Circle 6 Systems Branded Styles
+ * PeopleSafe SDLC Journal - Warm & Grounded Theme
  * Mobile-first responsive design with WCAG AA accessibility.
  */
 
 /* --- CSS Variables --- */
 :root {
-  --navy: #0a192f;
-  --navy-light: #112240;
-  --navy-lighter: #1d3461;
-  --slate: #8892b0;
-  --slate-light: #a8b2d1;
-  --lightest: #ccd6f6;
-  --white: #e6f1ff;
-  --accent: #64ffda;
-  --accent-dim: #64ffda33;
+  --navy: #2d2a2e;
+  --navy-light: #3a3640;
+  --navy-lighter: #504a52;
+  --slate: #9a8f85;
+  --slate-light: #c5b9a8;
+  --lightest: #ede6d6;
+  --white: #f5f0e8;
+  --accent: #8faa7b;
+  --accent-dim: #8faa7b30;
 
   /* SDLC Category Colors */
-  --success-color: #64ffda;
-  --success-bg: #64ffda15;
-  --delight-color: #ffd764;
-  --delight-bg: #ffd76415;
-  --learning-color: #64b5ff;
-  --learning-bg: #64b5ff15;
-  --compliment-color: #ff64b5;
-  --compliment-bg: #ff64b515;
+  --success-color: #8faa7b;
+  --success-bg: #8faa7b18;
+  --delight-color: #d4a85c;
+  --delight-bg: #d4a85c18;
+  --learning-color: #7a9bb5;
+  --learning-bg: #7a9bb518;
+  --compliment-color: #c17c8e;
+  --compliment-bg: #c17c8e18;
 
   /* Layout */
   --max-width: 900px;
@@ -309,7 +309,7 @@ textarea.form-input {
 }
 
 .btn-primary:hover:not(:disabled) {
-  background: #8affea;
+  background: #a3c090;
 }
 
 .btn-secondary {
@@ -325,12 +325,12 @@ textarea.form-input {
 
 .btn-danger {
   background: transparent;
-  border-color: #ff6464;
-  color: #ff6464;
+  border-color: #c46a5e;
+  color: #c46a5e;
 }
 
 .btn-danger:hover:not(:disabled) {
-  background: #ff646420;
+  background: #c46a5e20;
 }
 
 .btn-small {
@@ -357,9 +357,9 @@ textarea.form-input {
 }
 
 .message-error {
-  background: #ff646420;
-  border: 1px solid #ff6464;
-  color: #ff9999;
+  background: #c46a5e20;
+  border: 1px solid #c46a5e;
+  color: #d49a90;
 }
 
 .message-success {

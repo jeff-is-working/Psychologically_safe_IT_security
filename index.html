@@ -497,7 +497,7 @@
 
           <!-- Clear All -->
           <div class="settings-section">
-            <h3 style="color:#ff6464;">Clear All Data</h3>
+            <h3 style="color:#c46a5e;">Clear All Data</h3>
             <p style="font-size:0.8rem;color:var(--slate);margin-bottom:0.75rem;">
               Permanently delete all entries, rollups, and encryption keys. This cannot be undone.
             </p>
@@ -506,7 +506,7 @@
             </template>
             <template x-if="showClearConfirm">
               <div>
-                <p style="font-size:0.85rem;color:#ff6464;margin-bottom:0.5rem;">Type <strong>DELETE ALL</strong> to confirm:</p>
+                <p style="font-size:0.85rem;color:#c46a5e;margin-bottom:0.5rem;">Type <strong>DELETE ALL</strong> to confirm:</p>
                 <div style="display:flex;gap:0.5rem;">
                   <input class="form-input" x-model="clearConfirmText" placeholder="DELETE ALL" style="max-width:200px;">
                   <button class="btn btn-danger" @click="clearAllData()" :disabled="clearConfirmText !== 'DELETE ALL'">Confirm Delete</button>
