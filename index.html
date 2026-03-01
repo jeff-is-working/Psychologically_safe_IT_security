@@ -43,14 +43,14 @@
 
       <div style="text-align:left;background:var(--navy);border:1px solid var(--navy-lighter);border-radius:var(--radius);padding:1rem;margin-bottom:1.5rem;">
         <p style="color:var(--slate-light);font-size:0.85rem;margin-bottom:0.75rem;">A daily journaling practice built for IT and cybersecurity professionals. Each day, reflect on four areas:</p>
-        <p style="font-size:0.85rem;margin-bottom:0.15rem;"><span style="color:var(--success-color);">&#10003; Success</span> <span style="color:var(--slate);"> &mdash; Where did I have success today?</span></p>
-        <p style="font-size:0.85rem;margin-bottom:0.15rem;"><span style="color:var(--delight-color);">&#9733; Delight</span> <span style="color:var(--slate);"> &mdash; What brought me delight today?</span></p>
-        <p style="font-size:0.85rem;margin-bottom:0.15rem;"><span style="color:var(--learning-color);">&#9998; Learning</span> <span style="color:var(--slate);"> &mdash; What did I learn today?</span></p>
-        <p style="font-size:0.85rem;margin-bottom:0.75rem;"><span style="color:var(--compliment-color);">&#9829; Compliment</span> <span style="color:var(--slate);"> &mdash; What can I compliment about my day?</span></p>
-        <p style="color:var(--slate);font-size:0.8rem;">Consistency over time shifts your perspective. Your entries are encrypted locally and never leave your browser.</p>
+        <p style="font-size:0.85rem;margin-bottom:0.15rem;"><span style="color:var(--success-color);font-weight:500;">Success</span> <span style="color:var(--slate);"> &mdash; Where did I have success today?</span></p>
+        <p style="font-size:0.85rem;margin-bottom:0.15rem;"><span style="color:var(--delight-color);font-weight:500;">Delight</span> <span style="color:var(--slate);"> &mdash; What brought me delight today?</span></p>
+        <p style="font-size:0.85rem;margin-bottom:0.15rem;"><span style="color:var(--learning-color);font-weight:500;">Learning</span> <span style="color:var(--slate);"> &mdash; What did I learn today?</span></p>
+        <p style="font-size:0.85rem;margin-bottom:0.75rem;"><span style="color:var(--compliment-color);font-weight:500;">Compliment</span> <span style="color:var(--slate);"> &mdash; What can I compliment about my day?</span></p>
+        <p style="color:var(--slate);font-size:0.8rem;">Consistency over time shifts your perspective. Your entries are private and stored only on this device &mdash; they are never sent anywhere.</p>
       </div>
 
-      <p style="color:var(--slate);margin-bottom:1rem;font-size:0.9rem;">Create a passphrase to get started.</p>
+      <p style="color:var(--slate);margin-bottom:1rem;font-size:0.9rem;">Choose a passphrase to protect your journal.</p>
 
       <div x-show="error" x-text="error" class="message message-error"></div>
 
@@ -75,7 +75,7 @@
       </button>
 
       <p style="margin-top:1rem;font-size:0.75rem;color:var(--slate);">
-        Your passphrase is used to derive an AES-256-GCM encryption key via PBKDF2 (600,000 iterations). If you forget your passphrase, your data cannot be recovered.
+        Your passphrase is the only way to access your journal. For your safety, it is not stored anywhere and cannot be reset. If you forget it, your entries cannot be recovered. Please choose something memorable.
       </p>
     </div>
   </template>
