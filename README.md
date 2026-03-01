@@ -2,7 +2,7 @@
 
 A client-side encrypted journaling app for IT and cybersecurity professionals. Built on the SDLC framework — **Success, Delight, Learning, Compliment** — adapted from Donald Altman's G.L.A.D. Technique.
 
-**Live at:** [https://jeff-is-working.github.io/Psychologically_safe_IT_security/](https://jeff-is-working.github.io/Psychologically_safe_IT_security/)
+**Live at:** [https://sdlc.circle6systems.com](https://sdlc.circle6systems.com)
 
 ## Features
 
@@ -45,7 +45,7 @@ A client-side encrypted journaling app for IT and cybersecurity professionals. B
 ## Local Development
 
 ```bash
-cd Psychologically_safe_IT_security
+cd sdlc-journal
 python3 -m http.server 8000
 # Open http://localhost:8000
 ```
