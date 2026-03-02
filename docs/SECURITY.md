@@ -1,7 +1,7 @@
 ---
 title: Security
-scope: Threat model, encryption controls, content security policy, session management, and incident response
-last_updated: 2026-03-01
+scope: Threat model, encryption controls, content security policy, session management, Electron security, and incident response
+last_updated: 2026-03-02
 ---
 
 # Security
@@ -21,6 +21,9 @@ The app protects against these threat categories, ordered by likelihood in the t
 | **XSS / code injection** — malicious script accesses the CryptoKey | CSP meta tag: `script-src 'self' 'unsafe-eval'`; no inline scripts; all user content rendered via Alpine.js `x-text` (auto-escaped) | `unsafe-eval` required by Alpine.js; mitigated by `default-src 'self'` blocking external code |
 | **Clickjacking** — embedding the app in a malicious frame | `X-Frame-Options: DENY` and `frame-ancestors 'none'` in CSP | Relies on browser honoring these headers |
 | **Data exfiltration via browser extensions** — malicious extension reads DOM/storage | Out of scope; browser extensions run with elevated privileges | Users should audit installed extensions |
+| **Electron renderer compromise** — malicious code in renderer tries to access Node.js | `contextIsolation: true`, `nodeIntegration: false`, `sandbox: false` (required for preload fs access); only `electronAPI` exposed via `contextBridge` | Preload exposes a limited API surface; no arbitrary file system or process access from renderer |
+| **Path traversal via `app://` protocol** — crafted URL accesses files outside app directory | Protocol handler resolves and validates that all paths fall within the app base directory | Only files within the web app root are served |
+| **Navigation hijacking** — renderer navigates to a malicious URL | `will-navigate` handler blocks all non-`app://` URLs; `setWindowOpenHandler` sends external URLs to system browser | Electron never loads remote content |
 
 ## Encryption Controls
 
@@ -42,7 +45,7 @@ All cryptographic operations use the **Web Crypto API** (`crypto.subtle`), which
 
 ## Content Security Policy
 
-The CSP is set via a `<meta>` tag in `index.html`, providing defense-in-depth against injection attacks.
+The CSP is set via a `<meta>` tag in `index.html`, providing defense-in-depth against injection attacks. In the Electron app, the custom `app://` protocol is registered as `standard` and `secure`, so `'self'` resolves to `app://.` — the same CSP works without modification.
 
 | Directive | Value | Purpose |
 |-----------|-------|---------|
@@ -64,9 +67,12 @@ The master CryptoKey exists only as a JavaScript object in memory. It is never s
 **Lock triggers**:
 - `beforeunload` event: key reference set to `null` on page close/refresh
 - `visibilitychange` event: 5-minute timer starts when the tab is hidden; if the timer expires, the app locks and clears the key
-- Manual lock: user clicks the "Lock" button in the header
+- Manual lock: user clicks the "Lock" button in the header, or uses Cmd/Ctrl+L, or selects "Lock Journal" from the system tray
+- **Electron only**: window `blur` event starts a 5-minute timer; `focus` cancels it. This complements `visibilitychange` for desktop window switching.
 
 **On lock**, the app clears: `cryptoKey`, `entryForm`, `selectedEntry`, `currentRollup`, `searchResults`, and navigates to the auth view.
+
+**Single instance lock** (Electron only): `app.requestSingleInstanceLock()` ensures only one instance runs. A second launch attempt focuses the existing window instead of opening a new one, preventing multiple unlocked sessions.
 
 ## Export and Import Security
 
@@ -80,6 +86,8 @@ Importing a backup merges data using a "newer wins" strategy (comparing `updated
 - **`unsafe-eval` in CSP**: Alpine.js requires `unsafe-eval` for its expression evaluation. This widens the XSS attack surface compared to a strict CSP. The risk is mitigated by `default-src 'self'` blocking all external script sources.
 - **No integrity verification on static files**: GitHub Pages does not support Subresource Integrity (SRI) for same-origin scripts. A compromised GitHub account or supply chain attack on GitHub Pages could serve altered JavaScript. Users concerned about this should self-host or verify source integrity via git.
 - **Browser extension access**: Extensions running with `<all_urls>` permission can read DOM content and IndexedDB. This is outside the app's control.
+- **Electron auto-update trust**: Updates are fetched from GitHub Releases over HTTPS. A compromised GitHub account could push a malicious update. Users concerned about this should verify release signatures or build from source.
+- **Electron IPC surface**: The preload script exposes file dialog and file I/O operations via `electronAPI`. These are limited to explicit user-initiated actions (save dialog, open dialog) and cannot be triggered silently by page scripts.
 
 ## Incident Response
 

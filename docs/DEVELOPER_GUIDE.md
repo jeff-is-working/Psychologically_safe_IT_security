@@ -1,7 +1,7 @@
 ---
 title: Developer Guide
-scope: Coding conventions, file organization, module patterns, and how to extend the application
-last_updated: 2026-03-01
+scope: Coding conventions, file organization, module patterns, Electron development, and how to extend the application
+last_updated: 2026-03-02
 ---
 
 # Developer Guide
@@ -15,14 +15,25 @@ For prerequisites, installation, and running the app locally, see [README.md —
 The project has no build tooling. All source files are served directly by the static host.
 
 ```
-index.html              ← App shell: all HTML views as Alpine.js templates
-css/styles.css          ← Single stylesheet, CSS custom properties for theming
-js/utils.js             ← Date helpers, formatters, escaping (loaded first)
-js/crypto.js            ← Web Crypto API wrapper (depends on nothing)
-js/storage.js           ← IndexedDB abstraction (depends on Utils for export filename)
-js/rollups.js           ← Period aggregation (depends on Utils, Storage, Crypto)
-js/app.js               ← Alpine.js component (depends on all above)
-js/vendor/alpine.min.js ← Vendored Alpine.js 3.x (loaded with defer, runs last)
+index.html                  ← App shell: all HTML views as Alpine.js templates
+css/styles.css              ← Single stylesheet, CSS custom properties for theming
+js/utils.js                 ← Date helpers, formatters, escaping (loaded first)
+js/crypto.js                ← Web Crypto API wrapper (depends on nothing)
+js/storage.js               ← IndexedDB abstraction (depends on Utils for export filename)
+js/rollups.js               ← Period aggregation (depends on Utils, Storage, Crypto)
+js/app.js                   ← Alpine.js component (depends on all above)
+js/vendor/alpine.min.js     ← Vendored Alpine.js 3.x (loaded with defer, runs last)
+electron/
+  main.js                   ← Electron main process: protocol, window, IPC
+  preload.js                ← contextBridge: exposes electronAPI to renderer
+  electron-bridge.js        ← IPC event listeners → Alpine.js method calls
+  tray.js                   ← System tray icon and context menu
+  menu.js                   ← Native menu bar with keyboard accelerators
+  notifications.js          ← Daily 5 PM journaling reminder
+  updater.js                ← Auto-update via GitHub Releases
+  package.json              ← Electron deps + electron-builder config
+  icons/                    ← Platform-specific app and tray icons
+  build/                    ← macOS entitlements plist
 ```
 
 Scripts are loaded synchronously in `index.html` in this exact order. Alpine.js has the `defer` attribute so it executes after all other scripts have registered the `alpine:init` event listener in `app.js`.
@@ -45,6 +56,8 @@ const ModuleName = (() => {
 ```
 
 Private functions are prefixed with `_`. The public API is the returned object at the bottom of the IIFE.
+
+The `electron/` modules use **CommonJS** (`require`/`module.exports`) since they run in Node.js. Each module exports an object with its public functions (e.g., `module.exports = { create }` in `tray.js`).
 
 ## Coding Conventions
 
@@ -82,3 +95,16 @@ Any code change must maintain the encryption guarantees documented in [SECURITY.
 - All user-generated content must be rendered via `x-text` (which auto-escapes HTML), never `x-html`.
 - Do not add external script sources, CDN links, or analytics. The CSP and privacy commitment prohibit external connections.
 - New IndexedDB stores or schema changes require incrementing `DB_VERSION` in `storage.js` and adding migration logic in `onupgradeneeded`.
+
+## Electron Development
+
+To run the desktop app locally, install Electron dependencies and start. See [README.md — Local Development](../README.md#local-development) for prerequisites and commands.
+
+**Adding an IPC handler** (e.g., a new native dialog or file operation):
+
+1. **Main process** (`electron/main.js`): Add `ipcMain.handle('channel:name', handler)` in `setupIPC()`.
+2. **Preload** (`electron/preload.js`): Expose the channel in the `contextBridge.exposeInMainWorld('electronAPI', {...})` object.
+3. **Bridge** (`electron/electron-bridge.js`): If the feature is triggered by menu/tray, add an `electronAPI.onChannelName()` listener that calls the appropriate `window.sdlcAppRef` method.
+4. **Web app**: Gate Electron-specific behavior behind `if (window.electronAPI)` checks so the browser version is unaffected.
+
+**Adding a menu item**: Edit `electron/menu.js` and add an entry to the appropriate submenu template. Use `mainWindow.webContents.send('app:yourEvent')` to send an IPC message to the renderer, then handle it in `electron-bridge.js`.

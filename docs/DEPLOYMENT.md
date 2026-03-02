@@ -1,12 +1,12 @@
 ---
 title: Deployment
-scope: GitHub Pages hosting, CI/CD pipeline, custom domain configuration, and troubleshooting
-last_updated: 2026-03-01
+scope: GitHub Pages hosting, Electron desktop distribution, CI/CD pipelines, and troubleshooting
+last_updated: 2026-03-02
 ---
 
 # Deployment
 
-PeopleSafe SDLC Journal is a static site deployed to GitHub Pages. There is no build step, no server provisioning, and no runtime infrastructure to manage. The CI/CD pipeline is a single GitHub Actions workflow that uploads the repository contents as a Pages artifact.
+PeopleSafe SDLC Journal is deployed two ways: as a static site on GitHub Pages (web) and as a packaged Electron app (desktop). The web deployment has no build step. The desktop deployment uses electron-builder to produce platform-specific installers distributed via GitHub Releases.
 
 ## Hosting Environment
 
@@ -63,3 +63,50 @@ For setup and local development instructions, see [README.md](../README.md#local
 | `CNAME` file disappears after deploy | Workflow artifact doesn't include it | Ensure `CNAME` is committed to the `main` branch and not in `.gitignore` |
 | Old content served after deploy | CDN cache | GitHub Pages has a 10-minute cache; hard-refresh with Ctrl+Shift+R; wait and retry |
 | Workflow fails at "Upload artifact" | File too large or permissions issue | Check Actions logs; verify repository size is under GitHub Pages limits (1GB published site) |
+
+## Electron Desktop Distribution
+
+The Electron app is built and released via two GitHub Actions workflows in `.github/workflows/`.
+
+**`electron-build.yml`** (CI) runs on every push to `main` and on pull requests when app-related files change (`electron/`, `js/`, `css/`, `index.html`, `assets/`). It builds for all three platforms and uploads artifacts to the Actions tab for testing.
+
+**`electron-release.yml`** (Release) creates a GitHub Release with downloadable installers. It can be triggered two ways:
+
+| Trigger | How | Draft? |
+|---------|-----|--------|
+| Tag push | `git tag v1.0.0 && git push origin v1.0.0` | No (published immediately) |
+| Manual dispatch | Actions tab > "Release Electron App" > Run workflow | Configurable (defaults to draft) |
+
+```mermaid
+graph LR
+    TRIGGER["Tag push\nor manual dispatch"] --> PREPARE["Prepare\n(resolve version,\nverify package.json)"]
+    PREPARE --> MAC["Build macOS\n(.dmg + .zip)"]
+    PREPARE --> WIN["Build Windows\n(.exe NSIS)"]
+    PREPARE --> LINUX["Build Linux\n(.AppImage + .deb)"]
+    MAC --> RELEASE["Create GitHub Release\n(collect all artifacts)"]
+    WIN --> RELEASE
+    LINUX --> RELEASE
+```
+
+The release job downloads all platform artifacts, then creates a single GitHub Release with download instructions and auto-generated release notes. The `electron-updater` library in the app checks for new releases on startup and prompts users to update.
+
+### Build Targets
+
+| Platform | Format | Build Command |
+|----------|--------|---------------|
+| macOS | `.dmg` + `.zip` | `cd electron && npm run build:mac` |
+| Windows | NSIS `.exe` | `cd electron && npm run build:win` |
+| Linux | `.AppImage` + `.deb` | `cd electron && npm run build:linux` |
+
+For local development setup, see [README.md — Local Development](../README.md#local-development).
+
+### Electron Troubleshooting
+
+| Symptom | Cause | Resolution |
+|---------|-------|------------|
+| `app://` protocol not registered | Scheme registered after `app.ready` | Ensure `registerSchemesAsPrivileged` is called before `app.whenReady()` |
+| Blank window on launch | Web app files not found at expected path | Check `getAppBasePath()` resolves correctly; in dev it should be `..` from `electron/` |
+| CSP errors in DevTools | Protocol not registered as `secure` | Verify `secure: true` in protocol privileges |
+| Auto-update not working | No GitHub Release with `latest-mac.yml` / `latest.yml` | Ensure release workflow ran and published the update manifests |
+| Build fails on CI | Missing `GH_TOKEN` | Ensure `GITHUB_TOKEN` secret is available (automatic for GitHub Actions) |
+| Second instance opens new window | Single-instance lock not acquired | Check `app.requestSingleInstanceLock()` runs before `app.whenReady()` |

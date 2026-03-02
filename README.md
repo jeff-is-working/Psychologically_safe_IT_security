@@ -1,7 +1,7 @@
 ---
 title: PeopleSafe SDLC Journal
 scope: Project overview, features, getting started, and architecture summary
-last_updated: 2026-03-01
+last_updated: 2026-03-02
 ---
 
 # PeopleSafe SDLC Journal
@@ -20,6 +20,7 @@ A client-side encrypted journaling app for IT and cybersecurity professionals. B
 - **Zero Network Requests** — After initial page load, the app makes no network requests whatsoever
 - **Mobile Responsive** — Full functionality on mobile with bottom navigation
 - **Auto-Lock** — Session automatically locks after 5 minutes of tab inactivity
+- **Desktop App** — Standalone Electron app for macOS, Windows, and Linux with system tray, native menu bar, keyboard shortcuts (Cmd+S/L/E), daily journaling reminders, and auto-updates
 
 ## Architecture
 
@@ -30,6 +31,10 @@ graph LR
     A["Browser"] -->|"HTTPS :443"| B["GitHub Pages\n(static files)"]
     A -->|"encrypt/decrypt"| C["Web Crypto API\nAES-256-GCM"]
     A -->|"read/write"| D[("IndexedDB\n(encrypted blobs)")]
+
+    E["Electron Shell"] -->|"app:// protocol"| F["Same HTML/CSS/JS"]
+    F -->|"encrypt/decrypt"| C
+    F -->|"read/write"| D
 ```
 
 For the full system design, data flow diagrams, and storage schema, see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
@@ -51,11 +56,14 @@ For the full threat model and security controls, see [docs/SECURITY.md](docs/SEC
 - **Web Crypto API** — AES-256-GCM encryption, PBKDF2 key derivation
 - **IndexedDB** — Persistent encrypted storage (50MB+)
 - **GitHub Pages** — Static hosting, no server required
-- **Zero dependencies** — No build step, no npm, no bundler
+- **Electron 33.x** — Desktop app with native OS integration (same codebase, no fork)
+- **Zero web dependencies** — No build step, no npm, no bundler for the web version
 
 For the complete component inventory, see [SBOM.md](SBOM.md).
 
 ## Getting Started
+
+### Web App
 
 1. Open [sdlc.circle6systems.com](https://sdlc.circle6systems.com) in a modern browser
 2. Create a passphrase (minimum 12 characters) — this derives your encryption key
@@ -63,19 +71,39 @@ For the complete component inventory, see [SBOM.md](SBOM.md).
 4. Review rollup summaries to spot patterns over time
 5. Export backups regularly from Settings
 
+### Desktop App
+
+Download the latest release for your platform from [GitHub Releases](https://github.com/jeff-is-working/SDLC-Journal/releases):
+
+| Platform | File |
+|----------|------|
+| macOS | `.dmg` (installer) or `.zip` (portable) |
+| Windows | `.exe` (NSIS installer) |
+| Linux | `.AppImage` (portable) or `.deb` (Debian/Ubuntu) |
+
+The desktop app includes system tray integration, keyboard shortcuts (Cmd/Ctrl+S to save, Cmd/Ctrl+L to lock, Cmd/Ctrl+E to export), daily journaling reminders at 5 PM, and automatic updates.
+
 **Important:** If you forget your passphrase, your data cannot be recovered. There is no reset mechanism by design.
 
 ## Local Development
 
-No build tools required. Serve the repository root with any static HTTP server.
+**Web app** — no build tools required. Serve the repository root with any static HTTP server:
 
 ```bash
-cd sdlc-journal
+cd SDLC-Journal
 python3 -m http.server 8000
 # Open http://localhost:8000
 ```
 
-For coding conventions and how to extend the app, see [docs/DEVELOPER_GUIDE.md](docs/DEVELOPER_GUIDE.md).
+**Electron app** — requires Node.js 20+:
+
+```bash
+cd SDLC-Journal/electron
+npm install
+npm start
+```
+
+For coding conventions and how to extend the app, see [docs/DEVELOPER_GUIDE.md](docs/DEVELOPER_GUIDE.md). For build and release details, see [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
 
 ## Documentation
 

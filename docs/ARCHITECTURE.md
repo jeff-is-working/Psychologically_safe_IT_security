@@ -1,12 +1,12 @@
 ---
 title: Architecture
-scope: System design, data flow, cryptographic architecture, storage schema, and design decisions
-last_updated: 2026-03-01
+scope: System design, data flow, cryptographic architecture, storage schema, Electron shell, and design decisions
+last_updated: 2026-03-02
 ---
 
 # Architecture
 
-PeopleSafe SDLC Journal is a zero-backend single-page application. All logic — encryption, storage, rendering — runs entirely in the user's browser. There is no server-side processing, no API calls after page load, and no external dependencies at runtime.
+PeopleSafe SDLC Journal is a zero-backend single-page application. All logic — encryption, storage, rendering — runs entirely in the user's browser. There is no server-side processing, no API calls after page load, and no external dependencies at runtime. The same codebase also runs as an Electron desktop app with native OS integration.
 
 ## System Overview
 
@@ -50,6 +50,13 @@ The application consists of five JavaScript modules, each exposed as a global II
 | `js/storage.js` | `Storage` | IndexedDB lifecycle, CRUD for entries/rollups/meta, export/import, storage estimates |
 | `js/rollups.js` | `Rollups` | Period aggregation (weekly/monthly/quarterly/yearly), sub-period reflection retrieval |
 | `js/app.js` | *(Alpine data)* | State machine, auth flow, view logic, session management, template helpers |
+| `electron/main.js` | *(Node.js)* | Electron main process: `app://` protocol, BrowserWindow, IPC handlers, window lifecycle |
+| `electron/preload.js` | *(preload)* | contextBridge API: exposes `window.electronAPI` to renderer |
+| `electron/electron-bridge.js` | *(renderer)* | Wires IPC events from tray/menu to Alpine.js methods via `window.sdlcAppRef` |
+| `electron/tray.js` | *(Node.js)* | System tray icon with context menu (Journal Today, Lock, Quit) |
+| `electron/menu.js` | *(Node.js)* | Native menu bar with keyboard accelerators (Cmd+S/L/E) |
+| `electron/notifications.js` | *(Node.js)* | Daily 5 PM journaling reminder via OS notifications |
+| `electron/updater.js` | *(Node.js)* | Auto-update via electron-updater and GitHub Releases |
 
 ## Cryptographic Architecture
 
@@ -131,6 +138,42 @@ sequenceDiagram
     App-->>User: "Entry saved successfully"
 ```
 
+## Electron Desktop Shell
+
+The Electron app wraps the same `index.html`, `css/`, `js/`, and `assets/` files — no copies or forks. A custom `app://` protocol serves the web app files from disk, providing both a secure context (required by Web Crypto API) and compatibility with the existing `default-src 'self'` CSP.
+
+```mermaid
+graph TB
+    subgraph "Main Process (Node.js)"
+        MAIN["main.js"]
+        TRAY["tray.js"]
+        MENU["menu.js"]
+        NOTIFY["notifications.js"]
+        UPDATE["updater.js"]
+    end
+
+    subgraph "Renderer (Chromium)"
+        PRELOAD["preload.js\n(contextBridge)"]
+        BRIDGE["electron-bridge.js\n(injected into page)"]
+        WEBAPP["index.html + js/*.js\n(unchanged web app)"]
+    end
+
+    MAIN -->|"app:// protocol"| WEBAPP
+    MAIN -->|"IPC send"| PRELOAD
+    PRELOAD -->|"window.electronAPI"| BRIDGE
+    BRIDGE -->|"window.sdlcAppRef"| WEBAPP
+    TRAY -->|"IPC: navigate, lock"| MAIN
+    MENU -->|"IPC: save, lock, export"| MAIN
+    NOTIFY -->|"IPC: notification:click"| MAIN
+    UPDATE -->|"dialog prompts"| MAIN
+```
+
+**Protocol registration**: The `app` scheme is registered as privileged (standard + secure) before `app.ready`. The file protocol handler resolves `app://./path` to the web app's base directory, with path traversal prevention.
+
+**IPC architecture**: The preload script exposes a safe `window.electronAPI` object via `contextBridge`. The electron-bridge.js file (injected into the page via `DOMContentLoaded`) listens for IPC events and calls Alpine.js methods through `window.sdlcAppRef`, which is set during `init()`. This pattern keeps `contextIsolation: true` and `nodeIntegration: false`.
+
+**Feature detection**: All Electron-specific behavior is gated behind `if (window.electronAPI)` checks in the web app code (currently only in `storage.js` for native file dialogs). This means the web version is completely unaffected by the Electron integration — `window.electronAPI` is `undefined` in browsers.
+
 ## Design Decisions
 
 | Decision | Choice | Rationale |
@@ -143,6 +186,10 @@ sequenceDiagram
 | Manual entry save | Explicit button click | Aligns with deliberate journaling practice; avoids accidental partial saves |
 | Debounced reflection save | Auto-save after 1.5s pause | Longer-form writing where losing work would be frustrating |
 | IIFE modules | No bundler, no ES modules | Zero build tooling; works directly on GitHub Pages; simple dependency chain |
+| Same-repo Electron | `electron/` subdirectory, loads web files directly | Single source of truth; no file copies or sync issues; GitHub Pages ignores `electron/` |
+| Custom `app://` protocol | Registered as standard + secure | `'self'` in CSP resolves to `app://.`; provides secure context for Web Crypto; no CSP changes needed |
+| contextBridge + preload | `contextIsolation: true`, `nodeIntegration: false` | Minimal attack surface; renderer has no direct Node.js access |
+| `window.sdlcAppRef` bridge | Alpine component exposes itself at init | Electron modules can call `lock()`, `saveEntry()`, `navigate()` via IPC without modifying the Alpine component |
 
 ## Browser Requirements
 

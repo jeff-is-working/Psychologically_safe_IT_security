@@ -1,7 +1,7 @@
 ---
 title: Software Bill of Materials (SBOM)
 scope: Complete inventory of all software components, their versions, licenses, and origins
-last_updated: 2026-03-01
+last_updated: 2026-03-02
 ---
 
 # Software Bill of Materials
@@ -21,6 +21,18 @@ These components are shipped as part of the application and execute in the user'
 | PeopleSafe SDLC — rollups.js | 1.0.0 | Project | Custom | N/A | 6 KB |
 | PeopleSafe SDLC — app.js | 1.0.0 | Project | Custom | N/A | 20 KB |
 | Circle 6 Systems logo | N/A | Proprietary | Circle 6 Systems | Yes (`assets/`) | 395 KB |
+
+## Electron Desktop Components
+
+These packages are used by the Electron desktop app. They are not part of the web version.
+
+| Component | Version | License | Type | Purpose |
+|-----------|---------|---------|------|---------|
+| Electron | ~33.3.x | MIT | devDependency | Desktop app runtime (Chromium + Node.js) |
+| electron-builder | ~25.1.x | MIT | devDependency | Cross-platform packaging and distribution |
+| electron-updater | ~6.3.x | MIT | dependency | Auto-update client via GitHub Releases |
+
+The Electron app loads the same `index.html`, `css/`, `js/`, and `assets/` files as the web version via a custom `app://` protocol. No files are forked or copied.
 
 ## Browser APIs
 
@@ -43,6 +55,9 @@ These GitHub Actions run in the deployment pipeline. They execute in GitHub's ho
 | actions/configure-pages | v5 | MIT | GitHub |
 | actions/upload-pages-artifact | v3 | MIT | GitHub |
 | actions/deploy-pages | v4 | MIT | GitHub |
+| actions/upload-artifact | v4 | MIT | GitHub |
+| actions/download-artifact | v4 | MIT | GitHub |
+| softprops/action-gh-release | v2 | MIT | softprops |
 
 ## Infrastructure
 
@@ -70,5 +85,5 @@ These tools are used during development but are not part of the deployed applica
 
 | License | Components |
 |---------|------------|
-| MIT | Alpine.js, GitHub Actions (checkout, configure-pages, upload-pages-artifact, deploy-pages) |
+| MIT | Alpine.js, Electron, electron-builder, electron-updater, GitHub Actions (checkout, configure-pages, upload-pages-artifact, deploy-pages, upload-artifact, download-artifact, action-gh-release) |
 | Proprietary | Circle 6 Systems logo, all custom application code |
