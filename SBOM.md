@@ -1,7 +1,7 @@
 ---
 title: Software Bill of Materials (SBOM)
 scope: Complete inventory of all software components, their versions, licenses, and origins
-last_updated: 2026-03-02
+last_updated: 2026-03-01
 ---
 
 # Software Bill of Materials
@@ -15,11 +15,11 @@ These components are shipped as part of the application and execute in the user'
 | Component | Version | License | Source | Vendored | Size |
 |-----------|---------|---------|--------|----------|------|
 | Alpine.js | 3.14.x | MIT | [github.com/alpinejs/alpine](https://github.com/alpinejs/alpine) | Yes (`js/vendor/alpine.min.js`) | 44 KB |
-| PeopleSafe SDLC — utils.js | 1.0.0 | Project | Custom | N/A | 6 KB |
-| PeopleSafe SDLC — crypto.js | 1.0.0 | Project | Custom | N/A | 4 KB |
-| PeopleSafe SDLC — storage.js | 1.0.0 | Project | Custom | N/A | 7 KB |
-| PeopleSafe SDLC — rollups.js | 1.0.0 | Project | Custom | N/A | 6 KB |
-| PeopleSafe SDLC — app.js | 1.0.0 | Project | Custom | N/A | 20 KB |
+| PeopleSafe SDLC — utils.js | 1.1.0 | Project | Custom | N/A | 6 KB |
+| PeopleSafe SDLC — crypto.js | 1.1.0 | Project | Custom | N/A | 4 KB |
+| PeopleSafe SDLC — storage.js | 1.1.0 | Project | Custom | N/A | 7 KB |
+| PeopleSafe SDLC — rollups.js | 1.1.0 | Project | Custom | N/A | 6 KB |
+| PeopleSafe SDLC — app.js | 1.1.0 | Project | Custom | N/A | 20 KB |
 | Circle 6 Systems logo | N/A | Proprietary | Circle 6 Systems | Yes (`assets/`) | 395 KB |
 
 ## Electron Desktop Components

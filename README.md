@@ -1,7 +1,7 @@
 ---
 title: PeopleSafe SDLC Journal
 scope: Project overview, features, getting started, and architecture summary
-last_updated: 2026-03-02
+last_updated: 2026-03-01
 ---
 
 # PeopleSafe SDLC Journal

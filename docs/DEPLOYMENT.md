@@ -1,7 +1,7 @@
 ---
 title: Deployment
 scope: GitHub Pages hosting, Electron desktop distribution, CI/CD pipelines, and troubleshooting
-last_updated: 2026-03-02
+last_updated: 2026-03-01
 ---
 
 # Deployment
@@ -74,7 +74,7 @@ The Electron app is built and released via two GitHub Actions workflows in `.git
 
 | Trigger | How | Draft? |
 |---------|-----|--------|
-| Tag push | `git tag v1.0.0 && git push origin v1.0.0` | No (published immediately) |
+| Tag push | `git tag v1.x.0 && git push origin v1.x.0` | No (published immediately) |
 | Manual dispatch | Actions tab > "Release Electron App" > Run workflow | Configurable (defaults to draft) |
 
 ```mermaid
